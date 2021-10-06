@@ -13,7 +13,7 @@ end)
 Citizen.CreateThread(function()
 	-- TODO: remove --> uncommnet next line and set as your id in the server
 	-- if you want to test by restarting the resource
-	players[1] = true
+	-- players[1] = true
 	while true do
 		if GetPlayerNum() == 0 then
 			-- Waiting for first spawn
@@ -29,7 +29,23 @@ Citizen.CreateThread(function()
 		Wait(0)
 	end
 end)
+RegisterCommand("bussme", function(source)
+	local src = source
+	while GetPlayerPed(src) == 0 do Wait(0) end
 
+	-- TODO: Find better solution to wait the player to be spawned
+	Wait(10000)
+	while IsEntityVisible(GetPlayerPed(src)) == false do
+		Wait(10000)
+	end
+	
+	players[src] = true
+
+	-- TODO: find a better solution
+	if serviceStarted == false then
+		SetPlayerCullingRadius(src, 999999999.0)
+	end
+end)
 RegisterNetEvent("playerJoining")
 AddEventHandler("playerJoining", function(oldId)
 	local src = source
@@ -111,13 +127,13 @@ function StartService()
 		Citizen.CreateThread(function()
 			local numOfBus = 0
 			while numOfBus < route.info.busNum do
-				local position = route[1].pos
-				local heading = route[1].heading
+				local position = route[1].spawn
+				local heading = route[1].sheading
 				local blipColor = route.info.color
 				local hash = route.info.hash
 				
 				local vehicle = CreateVehicle(GetHashKey(hash), position, heading, true, true)
-				local ped = CreatePedInsideVehicle(vehicle, 0, GetHashKey("s_m_m_gentransport"), -1, true, false)
+				local ped = CreatePedInsideVehicle(vehicle, 0, GetHashKey("ig_prolsec_02"), -1, true, false)
 
 				while not DoesEntityExist(vehicle) or not DoesEntityExist(ped) do
 					Wait(100)
