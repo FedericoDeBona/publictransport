@@ -16,7 +16,7 @@ Config.Routes = {
 		info = { 
 			color = 84, 
 			hash = "bus",
-			busNum = 4,
+			busNum = 0,
 			timeBetweenBus = 20, -- 40
 			startHeading = 68.031
 		},
@@ -33,7 +33,7 @@ Config.Routes = {
 		info = { 
 			color = 22, 
 			hash = "pbus",
-			busNum = 3,
+			busNum = 1,
 			timeBetweenBus = 120,
 			startHeading = 215.433
 		},
@@ -50,7 +50,7 @@ Config.Routes = {
 		info = { 
 			color = 24, -- Route color https://wiki.gtanet.work/index.php?title=Blips#Blip_Colors
 			hash = "coach", -- hash of vehicle to use ("coach", "pbus", "pbus2" ...) https://wiki.gtanet.work/index.php?title=Vehicle_Models
-			busNum = 4, -- number of buses per route (>= 1)
+			busNum = 0, -- number of buses per route (>= 1)
 			timeBetweenBus = 40, -- Time between buses in seconds. So there will be 4 buses in total for this route, one every 40 seconds
 			startHeading = 215.433 -- First spawn will be at first bus stop with this heading
 		},

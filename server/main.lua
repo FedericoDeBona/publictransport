@@ -5,7 +5,7 @@ local vehicles = {}
 Citizen.CreateThread(function()
 	-- TODO: test
 	-- https://forum.cfx.re/t/help-triggerclientevent-on-resourcestart/683698
-	while not GetResourceState() == "started" do Wait(0) end
+	while not GetResourceState(GetCurrentResourceName()) == "started" do Wait(0) end
 	vehicles["server"] = {}
 	for routeId, v in pairs(Config.Routes) do
 		Citizen.CreateThread(function()
@@ -49,7 +49,11 @@ function ServerManageRoute(routeId, vehicleNetId, nextBusStop)
 
 	local ped = GetPedInVehicleSeat(NetToVeh(vehicleNetId), -1)
 	if DoesEntityExist(ped) then DeleteEntity(ped) end
-
+	if index == nil then 
+		print("ERROR: vehicle not found in the table")
+		print(json.encode(vehicles["server"]), vehicleNetId)
+		return
+	end
 	while NetworkGetEntityOwner(NetToVeh(vehicleNetId)) <= 0 do
 		if actualTime >= time then
 			actualTime = 0
@@ -75,7 +79,6 @@ function ServerManageRoute(routeId, vehicleNetId, nextBusStop)
 				end
 				nextPosition = 1
 			end
-			print("Next position: "..nextPosition)
 		end
 		Wait(100)
 		actualTime = actualTime + 0.1
@@ -217,7 +220,12 @@ end)
 -- will trigger the change of ownership and the vehicle will be managed by the client
 RegisterNetEvent("publictransport:playerNearVehicle")
 AddEventHandler("publictransport:playerNearVehicle", function(vehicleNetId, position)
+	local src = source
+	SetPlayerCullingRadius(src, 999999.0)
+	SetEntityDistanceCullingRadius(NetToVeh(vehicleNetId), 999999.0)
 	SetEntityCoords(NetToVeh(vehicleNetId), position)
+	SetPlayerCullingRadius(src, 0.0)
+	SetEntityDistanceCullingRadius(NetToVeh(vehicleNetId), 424.0)
 end)
 
 RegisterNetEvent("publictransport:updateNextStop")

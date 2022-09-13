@@ -148,7 +148,7 @@ function DoRequestNetControl(netId)
 end
 
 function CleanUp()
-	for i,v in iparis(blips) do
+	for i,v in ipairs(blips) do
 		RemoveBlip(v)
 	end
 	blips = {}
@@ -212,9 +212,12 @@ AddEventHandler("publictransport:addBlipForCoords", function(position, vehicleNe
 	AddTextComponentSubstringPlayerName("Bus " .. color)
 	EndTextCommandSetBlipName(blip)
 	blips[vehicleNetId] = blip
+	
 	if #(GetEntityCoords(PlayerPedId()) - position) < 350.0 then -- the culling range is 424 units
-		TriggerServerEvent("publictransport:playerNearVehicle", vehicleNetId, position)
+		print("Player close enough")
+		--TriggerServerEvent("publictransport:playerNearVehicle", vehicleNetId, position)
 	end
+	
 end)
 
 RegisterNetEvent("publictransport:forceSetAllVehicleBlips")
