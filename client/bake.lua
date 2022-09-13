@@ -5,7 +5,7 @@ Now, the ideal solution would be using Dijkstra's algorithm to find the shortest
 I didn't managed to make it work, so instead I used a naive approach that works well enough.
 This approach uses the CalculateRouteBetweenTwoPoints native, so the problem is reduced to finding the closest
 node, in the adjacency list of the current node, to the destination node. 
-Now, iterating this alogrithm since we are close enough to the destination node, we will end up with a path.
+Now, iterating this alogrithm until we are close enough to the destination node, we will end up with a path.
 This path will be saved in a file and the server will use it to simulate the vehicle movement when no players
 are in the vehicle scope.
 ]]
@@ -26,6 +26,7 @@ RegisterCommand("bake", function(source, args)
 	vehicleNodes = json.decode(LoadResourceFile(GetCurrentResourceName(), "bake_data/vehicle_nodes.json"))
 	nodeLinks = json.decode(LoadResourceFile(GetCurrentResourceName(), "bake_data/node_links.json"))
 	
+	-- Load the nodes from all the map (used for the CalculateTravelDistanceBetweenPoints native)
 	while not AreNodesLoadedForArea(-8192.0, -8192.0, 8192.0, 8192.0) do 
 		RequestPathsPreferAccurateBoundingstruct(-8192.0, -8192.0, 8192.0, 8192.0)
 		Wait(0) 

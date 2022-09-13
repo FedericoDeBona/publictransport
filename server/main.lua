@@ -3,9 +3,9 @@ local vehicles = {}
 
 -- Initialize all the routes
 Citizen.CreateThread(function()
-	-- Mandatory wait or the "publictransport:addBlipForVehicle" won't be triggered
-	-- But why?
-	Wait(500) 
+	-- TODO: test
+	-- https://forum.cfx.re/t/help-triggerclientevent-on-resourcestart/683698
+	while not GetResourceState() == "started" do Wait(0) end
 	vehicles["server"] = {}
 	for routeId, v in pairs(Config.Routes) do
 		Citizen.CreateThread(function()
@@ -30,7 +30,6 @@ function StartNewRoute(routeId)
 	--  Always suppose the owner of the vehicle is the server at the beginning
 	local vehicleNetId = NetworkGetNetworkIdFromEntity(vehicle)
 	table.insert(vehicles["server"], {position = pos, vehicleNetId = vehicleNetId, pedNetId = nil, routeId = routeId, nextStop = 2, color = Config.Routes[routeId].info.color})
-	TriggerClientEvent("publictransport:addBlipForVehicle", -1, vehicleNetId, Config.Routes[routeId].info.color)
 	ServerManageRoute(routeId, vehicleNetId, 1)
 end
 
@@ -47,7 +46,10 @@ function ServerManageRoute(routeId, vehicleNetId, nextBusStop)
 	
 	local time = Config.BakeStepUnits / 60.0
 	local actualTime = 0.0
-	
+
+	local ped = GetPedInVehicleSeat(NetToVeh(vehicleNetId), -1)
+	if DoesEntityExist(ped) then DeleteEntity(ped) end
+
 	while NetworkGetEntityOwner(NetToVeh(vehicleNetId)) <= 0 do
 		if actualTime >= time then
 			actualTime = 0
@@ -55,10 +57,10 @@ function ServerManageRoute(routeId, vehicleNetId, nextBusStop)
 			local pos = vector3(node.x, node.y, node.z)
 			-- Need to fake the movement of the bus even if it exists, since SetEntityCoords is a RPC, so if no one is near the bus, it won't work
 			vehicles["server"][index].position = pos
-
-			-- TODO: così facendo salto l'ultimo punto di ogni path fino al busStop?
+			
+			-- TODO: test with IncrementIndex
 			nextPosition = (nextPosition+1)%(#route[nextBusStop]+1)
-			TriggerClientEvent("publictransport:addBlipForCoords", -1, vehicles["server"][index].position, Config.Routes[routeId].info.color)
+			TriggerClientEvent("publictransport:addBlipForCoords", -1, vehicles["server"][index].position, vehicleNetId, Config.Routes[routeId].info.color)
 			
 			if nextPosition == 0 then
 				nextBusStop = (nextBusStop+1)%#route
@@ -74,47 +76,48 @@ function ServerManageRoute(routeId, vehicleNetId, nextBusStop)
 				nextPosition = 1
 			end
 			print("Next position: "..nextPosition)
-			-- TODO: test if true
-			-- No need to notify the clients, since the vehicle is created usine CREATE_AUTOMOBILE and sync between
-			-- every client, hence the clients will see the vehicle moving by AddBlipForEntity native
 		end
 		Wait(100)
 		actualTime = actualTime + 0.1
 	end
-	print("Server lost control of the vehicle, passing control to the player")
-	-- At this point owner changed, so the vehicle is now managed by a client
-	ClientStartRoute(routeId, vehicleNetId, CalculateModule(nextBusStop, #route))
+	print("Server lost control of the vehicle, passing control to player " .. NetworkGetEntityOwner(NetToVeh(vehicleNetId)))
+	-- At this point owner changed, so the vehicle gets managed by a client
+	ClientStartRoute(routeId, vehicleNetId, IncrementIndex(nextBusStop, #route))
 end
 
+-- Given the vehicle, the route id and the bus stop to reach, this function will create the ped inside the vehicle,
+-- and tells the client to start the route
 function ClientStartRoute(routeId, vehicleNetId, nextBusStop)
 	local target = NetworkGetEntityOwner(NetToVeh(vehicleNetId))
 	if vehicles[target] == nil then
 		vehicles[target] = {}
 	end
-	local ped = CreatePedInsideVehicle(NetToVeh(vehicleNetId), 0, GetHashKey("s_m_m_gentransport"), -1, true, false)
-	while not DoesEntityExist(ped) do Wait(0) end
+	-- If there is no ped inside the vehicle, create one
+	local ped = GetPedInVehicleSeat(NetToVeh(vehicleNetId), -1)
+	if not DoesEntityExist(ped) then
+		ped = CreatePedInsideVehicle(NetToVeh(vehicleNetId), 0, GetHashKey("s_m_m_gentransport"), -1, true, false)
+		while not DoesEntityExist(ped) do Wait(0) end
+	end
 	local pedNetId = NetworkGetNetworkIdFromEntity(ped)
 	local index = FindRouteInTable("server", vehicleNetId)
 	table.insert(vehicles[target], vehicles["server"][index])
-	-- Dangerous operation. This will shift all the elements, so if another thread is accessing the table
-	-- at a certan index, it will get the wrong element or nil
-	-- Very unlikely to happen, but still possible
 	table.remove(vehicles["server"], index) 
 	vehicles[target][#vehicles[target]].pedNetId = pedNetId
 	TriggerClientEvent("publictransport:restoreRoute", target, vehicleNetId, routeId, nextBusStop, vehicles[target][#vehicles[target]].position)
 end
 
-function ManageOwnerChanged(src, vehicleNetId)
+function ManageOwnerChanged(src, vehicleNetId, position)
 	print("Managing owner changed", src, vehicleNetId)
 	while NetworkGetEntityOwner(NetToVeh(vehicleNetId)) == src do Wait(0) end
 	local target = NetworkGetEntityOwner(NetToVeh(vehicleNetId))
 
 	local index = FindRouteInTable(src, vehicleNetId)
 	local data = vehicles[src][index]
+	data.position = position
 	if target <= 0 then
 		table.insert(vehicles["server"], data)
 		table.remove(vehicles[src], index) 
-		ServerManageRoute(data.routeId, vehicleNetId, CalculateModuleInverse(data.nextStop, #Config.Routes[data.routeId].busStops))
+		ServerManageRoute(data.routeId, vehicleNetId, DecrementIndex(data.nextStop, #Config.Routes[data.routeId].busStops))
 	else
 		if vehicles[target] == nil then
 			vehicles[target] = {}
@@ -123,36 +126,6 @@ function ManageOwnerChanged(src, vehicleNetId)
 		table.remove(vehicles[src], index)
 		TriggerClientEvent("publictransport:restoreRoute", target, vehicleNetId, routeId, nextStop)
 	end
-end
-
-function NetToVeh(netId)
-	return NetworkGetEntityFromNetworkId(netId)
-end
-
-function CalculateModule(num, length)
-	if num+1 > length then
-		return 1
-	else
-		return num+1
-	end
-end
-
-function CalculateModuleInverse(num, length)
-	if num-1 <= 0 then
-		return length
-	else
-		return num-1
-	end
-end
-
-function FindRouteInTable(owner, vehicleNetId)
-	for i, v in ipairs(vehicles[owner]) do
-		if v.vehicleNetId == vehicleNetId then
-			return i
-		end
-	end
-	print("ERROR: HOW CAN FINDROUTEINTABLE RETURN NIL?????")
-	return nil
 end
 
 function GetClosestNodeIdFromVehicle(position, vehNodes)
@@ -175,55 +148,52 @@ function GetClosestNodeIdFromVehicle(position, vehNodes)
 	return index
 end
 
+function NetToVeh(netId)
+	return NetworkGetEntityFromNetworkId(netId)
+end
+
+function IncrementIndex(num, length)
+	if num+1 > length then
+		return 1
+	else
+		return num+1
+	end
+end
+
+function DecrementIndex(num, length)
+	if num-1 <= 0 then
+		return length
+	else
+		return num-1
+	end
+end
+
+function FindRouteInTable(owner, vehicleNetId)
+	for i, v in ipairs(vehicles[owner]) do
+		if v.vehicleNetId == vehicleNetId then
+			return i
+		end
+	end
+	print("ERROR: HOW CAN FINDROUTEINTABLE RETURN NIL?????")
+	return nil
+end
+
 function CleanUp()
 	for id, playerData in pairs(vehicles) do
 		for i,data in ipairs(playerData) do
 			local veh = NetToVeh(data.vehicleNetId)
 			local ped = NetToVeh(data.pedNetId)
-			if DoesEntityExist(veh) and DoesEntityExist(ped) then
+			if DoesEntityExist(veh) then
 				DeleteEntity(veh)
+			end
+			if DoesEntityExist(ped) then
 				DeleteEntity(ped)
 			end
 		end
 	end
 	vehicles = {}
+	bakedRoutes = {}
 end
-
--- TODO: execute again and remove (files too)
--- function CreateNodesFiles()
--- 	local vehicleNodes = json.decode(LoadResourceFile(GetCurrentResourceName(), "vehicle_nodes_original.json"))
--- 	local nodeLinks = json.decode(LoadResourceFile(GetCurrentResourceName(), "node_links_original.json"))
--- 	local newVehicleNodes = {}
--- 	local newLinks = {}
--- 	for i=1, #vehicleNodes do
--- 		newVehicleNodes[i] = {
--- 			id = i,
--- 			x = vehicleNodes[i][1],
--- 			y = vehicleNodes[i][2],
--- 			z = vehicleNodes[i][3],
--- 		}
--- 	end
--- 	for i=1, #nodeLinks do
--- 		local from = nodeLinks[i][1]+1
--- 		local to = nodeLinks[i][2]+1
--- 		if newLinks[from] == nil then
--- 			newLinks[from] = {}
--- 		end
--- 		table.insert(newLinks[from],to)
--- 		if newLinks[to] == nil then
--- 			newLinks[to] = {}
--- 		end
--- 		table.insert(newLinks[to],from)
--- 	end
-
--- 	local ret1 = SaveResourceFile(GetCurrentResourceName(), "bake_data/vehicle_nodes.json", json.encode(newVehicleNodes), -1)
--- 	local ret3 = SaveResourceFile(GetCurrentResourceName(), "bake_data/node_links.json", json.encode(newLinks), -1)
--- 	if not (ret1 or ret2 or ret3) then
--- 		print("ERROR SAVING FILES")
--- 	else
--- 		print("FILES SAVED")
--- 	end
--- end
 
 -- =========================
 -- 			EVENTS
@@ -242,14 +212,23 @@ AddEventHandler("publictransport:ownerChanged", function(vehicleNetId)
 	end
 end)
 
+-- TODO: test
+-- This should be a good solution to the SetEntityCoords being a RPC. So using it only if a player is nearby a vehicle
+-- will trigger the change of ownership and the vehicle will be managed by the client
+RegisterNetEvent("publictransport:playerNearVehicle")
+AddEventHandler("publictransport:playerNearVehicle", function(vehicleNetId, position)
+	SetEntityCoords(NetToVeh(vehicleNetId), position)
+end)
+
 RegisterNetEvent("publictransport:updateNextStop")
 AddEventHandler("publictransport:updateNextStop", function(vehicleNetId, nextStop)
-	local s = source
-	if vehicles[s] == nil then
+	local src = source
+	if vehicles[src] == nil then
+		print("ERROR: vehicles[src] is nil. How?")
 		return
 	end
-	local index = FindRouteInTable(s, vehicleNetId)
-	vehicles[s][index].nextStop = nextStop
+	local index = FindRouteInTable(src, vehicleNetId)
+	vehicles[src][index].nextStop = nextStop
 end)
 
 RegisterNetEvent("publictransport:onPlayerSpawn")

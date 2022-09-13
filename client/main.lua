@@ -1,4 +1,6 @@
 local ownership = {}
+local blips = {}
+-- TODO: change to true before release
 local firstSpawn = false
 
 -- Create the bus stop blips
@@ -64,37 +66,28 @@ end
 
 function StartOwnershipCheck(vehicleNetId)
 	ownership[vehicleNetId] = false
+	local lastKnownPosition = GetEntityCoords(NetToVeh(vehicleNetId))
 	Citizen.CreateThread(function()
 		while true do
-			Wait(0)
+			lastKnownPosition = GetEntityCoords(NetToVeh(vehicleNetId))
 			if not NetworkHasControlOfNetworkId(vehicleNetId) then
 				ownership[vehicleNetId] = true
 				print("Lost control of vehicle")
-				TriggerServerEvent("publictransport:ownerChanged", vehicleNetId)
+				TriggerServerEvent("publictransport:ownerChanged", vehicleNetId, lastKnownPosition)
 				return
 			end
 		end
+		Wait(0)
 	end)
-end
-
-function LoadCollision(ped, vehicle)
-	SetEntityLoadCollisionFlag(ped, true, 1)
-	SetEntityLoadCollisionFlag(vehicle, true, 1)
-	while not HasCollisionLoadedAroundEntity(vehicle) or not HasCollisionLoadedAroundEntity(ped) do Wait(0) end
-end
-
-function DoRequestNetControl(netId)
-	if NetworkDoesNetworkIdExist(netId) then
-		while not NetworkHasControlOfNetworkId(netId) do 
-			NetworkRequestControlOfNetworkId(netId)
-			Wait(0)
-		end
-	end
 end
 
 function SetupPedAndVehicle(ped, vehicle, position)
 	if position ~= nil then
 		SetEntityCoords(vehicle, position)
+		-- TODO: test
+		local ret, nodePos = GetPointOnRoadSide(position.x, position.y, position.z, 1) -- used also 0 and -1
+		local ret, outPos, heading = GetClosestVehicleNodeWithHeading(nodePos, 1, 3.0, 0)
+		SetEntityHeading(vehicle, heading)
 	end
 	SetEntityCanBeDamaged(vehicle, false)
 	SetVehicleDamageModifier(vehicle, 0.0)
@@ -125,7 +118,8 @@ function DoStuckCheck(vehicle)
 	if IsVehicleStuckTimerUp(vehicle, 0, 7000) or IsVehicleStuckTimerUp(vehicle, 1, 7000) or IsVehicleStuckTimerUp(vehicle, 2, 7000) or IsVehicleStuckTimerUp(vehicle, 2, 7000) then
 		SetEntityCollision(vehicle, false, true)
 		local vehPos = GetEntityCoords(vehicle)
-		local ret, pos = GetClosestRoad(vehPos.x, vehPos.y, vehPos.z, 1.0, 1, false)
+		--local ret, pos = GetClosestRoad(vehPos.x, vehPos.y, vehPos.z, 1.0, 1, false)
+		local ret, pos = GetPointOnRoadSide(vehPos.x, vehPos.y, vehPos.z, 1) -- used also 0 and -1
 		if ret then
 			SetEntityCoords(vehicle, pos)
 			vehPos = GetEntityCoords(vehicle)
@@ -137,6 +131,30 @@ function DoStuckCheck(vehicle)
 		end
 	end
 end
+
+function LoadCollision(ped, vehicle)
+	SetEntityLoadCollisionFlag(ped, true, 1)
+	SetEntityLoadCollisionFlag(vehicle, true, 1)
+	while not HasCollisionLoadedAroundEntity(vehicle) or not HasCollisionLoadedAroundEntity(ped) do Wait(0) end
+end
+
+function DoRequestNetControl(netId)
+	if NetworkDoesNetworkIdExist(netId) then
+		while not NetworkHasControlOfNetworkId(netId) do 
+			NetworkRequestControlOfNetworkId(netId)
+			Wait(0)
+		end
+	end
+end
+
+function CleanUp()
+	for i,v in iparis(blips) do
+		RemoveBlip(v)
+	end
+	blips = {}
+	ownership = {}
+end
+
 -- =========================
 -- 			EVENTS
 -- =========================
@@ -147,20 +165,25 @@ AddEventHandler("publictransport:restoreRoute", function(vehicleNetId, routeId, 
 	local pedNetId = PedToNet(ped)
 	DoRequestNetControl(pedNetId)
 	DoRequestNetControl(vehicleNetId)
-	while not NetworkHasControlOfNetworkId(pedNetId) or not NetworkHasControlOfNetworkId(vehicleNetId) do Wait(0) end
 	StartOwnershipCheck(vehicleNetId)
 	if DoesEntityExist(ped) and DoesEntityExist(vehicle) then
 		LoadCollision(ped, vehicle)
 		SetVehicleOnGroundProperly(vehicle, 5.0)
 		ClearPedTasks(ped)
 		SetupPedAndVehicle(ped, vehicle, position)
+		TriggerEvent("publictransport:addBlipForVehicle", vehicleNetId, Config.Routes[routeId].info.color)
 		DoDriverJob(ped, vehicle, routeId, nextStop)
+	else
+		print("ERROR: Vehicle or ped does not exist")
 	end
 end)
 
 RegisterNetEvent("publictransport:addBlipForVehicle")
 AddEventHandler("publictransport:addBlipForVehicle", function(vehicleNetId, color)
 	if firstSpawn then return end
+	if blips[vehicleNetId] ~= nil then
+		RemoveBlip(blips[vehicleNetId])
+	end
 	while not NetworkDoesNetworkIdExist(vehicleNetId) do Wait(0) end
 	local vehicle = NetToVeh(vehicleNetId)
 	local blip = AddBlipForEntity(vehicle)
@@ -171,11 +194,15 @@ AddEventHandler("publictransport:addBlipForVehicle", function(vehicleNetId, colo
 	BeginTextCommandSetBlipName('STRING')
 	AddTextComponentSubstringPlayerName("Bus " .. color)
 	EndTextCommandSetBlipName(blip)
+	blips[vehicleNetId] = blip
 end)
 
 RegisterNetEvent("publictransport:addBlipForCoords")
-AddEventHandler("publictransport:addBlipForCoords", function(position, color)
+AddEventHandler("publictransport:addBlipForCoords", function(position, vehicleNetId, color)
 	if firstSpawn then return end
+	if blips[vehicleNetId] ~= nil then
+		RemoveBlip(blips[vehicleNetId])
+	end
 	local blip = AddBlipForCoord(position)
 	SetBlipSprite(1, 463)
 	SetBlipColour(blip, color)
@@ -184,6 +211,10 @@ AddEventHandler("publictransport:addBlipForCoords", function(position, color)
 	BeginTextCommandSetBlipName('STRING')
 	AddTextComponentSubstringPlayerName("Bus " .. color)
 	EndTextCommandSetBlipName(blip)
+	blips[vehicleNetId] = blip
+	if #(GetEntityCoords(PlayerPedId()) - position) < 350.0 then -- the culling range is 424 units
+		TriggerServerEvent("publictransport:playerNearVehicle", vehicleNetId, position)
+	end
 end)
 
 RegisterNetEvent("publictransport:forceSetAllVehicleBlips")
@@ -210,5 +241,11 @@ AddEventHandler("playerSpawned", function(spawnInfo)
 	if firstSpawn then
 		TriggerServerEvent("publictransport:onPlayerSpawn")
 		firstSpawn = false
+	end
+end)
+
+AddEventHandler("onResourceStop", function(resName)
+	if GetCurrentResourceName() == resName then
+		CleanUp()
 	end
 end)

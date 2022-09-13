@@ -51,11 +51,11 @@ Config.Routes = {
 			color = 24, -- Route color https://wiki.gtanet.work/index.php?title=Blips#Blip_Colors
 			hash = "coach", -- hash of vehicle to use ("coach", "pbus", "pbus2" ...) https://wiki.gtanet.work/index.php?title=Vehicle_Models
 			busNum = 4, -- number of buses per route (>= 1)
-			timeBetweenBus = 40, -- In second (80)
+			timeBetweenBus = 40, -- Time between buses in seconds. So there will be 4 buses in total for this route, one every 40 seconds
 			startHeading = 215.433 -- First spawn will be at first bus stop with this heading
 		},
 		busStops = {
-			{ pos = vector3(-1167.943, -1471.187, 3.634399), stop = true },
+			{ pos = vector3(-1167.943, -1471.187, 3.634399), stop = true }, -- Position where the bus will be spawned
 			{ pos = vector3(-1107.257, -1467.336, 4.342163), stop = false }, -- stop = false -> the bus won't stop but is forced to pass here
 			{ pos = vector3(-808.1934, -1029.653, 12.48059), stop = true },
 			{ pos = vector3(-560.1099, -843.8505, 26.75244), stop = true },
