@@ -219,13 +219,16 @@ end)
 -- This should be a good solution to the SetEntityCoords being a RPC. So using it only if a player is nearby a vehicle
 -- will trigger the change of ownership and the vehicle will be managed by the client
 RegisterNetEvent("publictransport:playerNearVehicle")
-AddEventHandler("publictransport:playerNearVehicle", function(vehicleNetId, position)
+AddEventHandler("publictransport:playerNearVehicle", function(vehicleNetId, position, heading)
+	print("Player near vehicle", vehicleNetId, position, heading)
 	local src = source
 	SetPlayerCullingRadius(src, 999999.0)
 	SetEntityDistanceCullingRadius(NetToVeh(vehicleNetId), 999999.0)
 	SetEntityCoords(NetToVeh(vehicleNetId), position)
+	SetEntityHeading(NetToVeh(vehicleNetId), heading)
 	SetPlayerCullingRadius(src, 0.0)
 	SetEntityDistanceCullingRadius(NetToVeh(vehicleNetId), 424.0)
+	print("Done setting the vehicle")
 end)
 
 RegisterNetEvent("publictransport:updateNextStop")

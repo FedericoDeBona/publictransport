@@ -180,7 +180,6 @@ end)
 
 RegisterNetEvent("publictransport:addBlipForVehicle")
 AddEventHandler("publictransport:addBlipForVehicle", function(vehicleNetId, color)
-	if firstSpawn then return end
 	if blips[vehicleNetId] ~= nil then
 		RemoveBlip(blips[vehicleNetId])
 	end
@@ -199,7 +198,6 @@ end)
 
 RegisterNetEvent("publictransport:addBlipForCoords")
 AddEventHandler("publictransport:addBlipForCoords", function(position, vehicleNetId, color)
-	if firstSpawn then return end
 	if blips[vehicleNetId] ~= nil then
 		RemoveBlip(blips[vehicleNetId])
 	end
@@ -213,9 +211,11 @@ AddEventHandler("publictransport:addBlipForCoords", function(position, vehicleNe
 	EndTextCommandSetBlipName(blip)
 	blips[vehicleNetId] = blip
 	
-	if #(GetEntityCoords(PlayerPedId()) - position) < 350.0 then -- the culling range is 424 units
+	if #(GetEntityCoords(PlayerPedId()) - position) < 350.0 then -- the default culling range is 424 units
 		print("Player close enough")
-		--TriggerServerEvent("publictransport:playerNearVehicle", vehicleNetId, position)
+		local ret, nodePos = GetPointOnRoadSide(position.x, position.y, position.z, 1) -- used also 0 and -1
+		local ret, outPos, heading = GetClosestVehicleNodeWithHeading(nodePos, 1, 3.0, 0)
+		TriggerServerEvent("publictransport:playerNearVehicle", vehicleNetId, position, heading)
 	end
 	
 end)
