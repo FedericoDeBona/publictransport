@@ -3,7 +3,7 @@ Config.WaitTimeAtBusStop = 8 -- In seconds
 -- If you want to change this go here https://www.vespura.com/fivem/drivingstyle/
 -- There are some problems with traffic lights, sometimes the vehicle takes a weird path
 Config.DriveStyle = 2103615 
-Config.Speed = 20.0
+Config.Speed = 120.0 -- old 20.0
 -- BAKE PARAMS
 -- Distance between points in the baked path (used in CalculateRouteBetweenTwoPoints in bake.lua)
 Config.BakeStepUnits = 150.0
@@ -32,8 +32,8 @@ Config.Routes = {
 		-- routeId = 2
 		info = { 
 			color = 22, 
-			hash = "pbus",
-			busNum = 1,
+			hash = "zentorno",
+			busNum = 0,
 			timeBetweenBus = 120,
 			startHeading = 215.433
 		},
@@ -50,7 +50,7 @@ Config.Routes = {
 		info = { 
 			color = 24, -- Route color https://wiki.gtanet.work/index.php?title=Blips#Blip_Colors
 			hash = "coach", -- hash of vehicle to use ("coach", "pbus", "pbus2" ...) https://wiki.gtanet.work/index.php?title=Vehicle_Models
-			busNum = 0, -- number of buses per route (>= 1)
+			busNum = 1, -- number of buses per route (>= 1)
 			timeBetweenBus = 40, -- Time between buses in seconds. So there will be 4 buses in total for this route, one every 40 seconds
 			startHeading = 215.433 -- First spawn will be at first bus stop with this heading
 		},

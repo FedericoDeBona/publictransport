@@ -21,6 +21,12 @@ Citizen.CreateThread(function()
 	end
 end)
 
+
+--[[
+Sol 1: Create the vehicle in the pos of a random player, set it invisible and no collision. If the "playerNearBusStop" event is triggered, 
+we can use SetEntityCoords to move the vehicle to the right position, and then set it visible and collision.
+]]
+
 -- ===========================
 -- 			FUNCTIONS
 -- ===========================
@@ -76,8 +82,8 @@ function StartOwnershipCheck(vehicleNetId)
 				TriggerServerEvent("publictransport:ownerChanged", vehicleNetId, lastKnownPosition)
 				return
 			end
+			Wait(100)
 		end
-		Wait(0)
 	end)
 end
 
@@ -86,7 +92,7 @@ function SetupPedAndVehicle(ped, vehicle, position)
 		SetEntityCoords(vehicle, position)
 		-- TODO: test
 		local ret, nodePos = GetPointOnRoadSide(position.x, position.y, position.z, 1) -- used also 0 and -1
-		local ret, outPos, heading = GetClosestVehicleNodeWithHeading(nodePos, 1, 3.0, 0)
+		local ret, outPos, heading = GetClosestVehicleNodeWithHeading(nodePos.x, nodePos.y, nodePos.z, 1, 3.0, 0)
 		SetEntityHeading(vehicle, heading)
 	end
 	SetEntityCanBeDamaged(vehicle, false)
@@ -214,7 +220,7 @@ AddEventHandler("publictransport:addBlipForCoords", function(position, vehicleNe
 	if #(GetEntityCoords(PlayerPedId()) - position) < 350.0 then -- the default culling range is 424 units
 		print("Player close enough")
 		local ret, nodePos = GetPointOnRoadSide(position.x, position.y, position.z, 1) -- used also 0 and -1
-		local ret, outPos, heading = GetClosestVehicleNodeWithHeading(nodePos, 1, 3.0, 0)
+		local ret, outPos, heading = GetClosestVehicleNodeWithHeading(nodePos.x, nodePos.y, nodePos.z, 1, 3.0, 0)
 		TriggerServerEvent("publictransport:playerNearVehicle", vehicleNetId, position, heading)
 	end
 	
@@ -251,4 +257,9 @@ AddEventHandler("onResourceStop", function(resName)
 	if GetCurrentResourceName() == resName then
 		CleanUp()
 	end
+end)
+
+-- TODO: remove
+RegisterCommand("move", function()
+	SetEntityCoords(PlayerPedId(), vector3(-808.1934, -1029.653, 12.48059))
 end)

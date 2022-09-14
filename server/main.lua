@@ -42,19 +42,20 @@ function ServerManageRoute(routeId, vehicleNetId, nextBusStop)
 	local route = bakedRoutes[routeId]
 	-- TODO : nextBusStop-1 could be 0 -> manage this case
 	local index = FindRouteInTable("server", vehicleNetId)
-	local nextPosition = GetClosestNodeIdFromVehicle(vehicles["server"][index].position, route[nextBusStop])
+	local pos = vector3(vehicles["server"][index].position.x, vehicles["server"][index].position.y, vehicles["server"][index].position.z)
+	local nextPosition = GetClosestNodeIdFromVehicle(pos, route[nextBusStop])
 	
 	local time = Config.BakeStepUnits / 60.0
 	local actualTime = 0.0
 
-	local ped = GetPedInVehicleSeat(NetToVeh(vehicleNetId), -1)
+	local ped = GetPedInVehicleSeat(NetToEnt(vehicleNetId), -1)
 	if DoesEntityExist(ped) then DeleteEntity(ped) end
 	if index == nil then 
 		print("ERROR: vehicle not found in the table")
 		print(json.encode(vehicles["server"]), vehicleNetId)
 		return
 	end
-	while NetworkGetEntityOwner(NetToVeh(vehicleNetId)) <= 0 do
+	while NetworkGetEntityOwner(NetToEnt(vehicleNetId)) <= 0 do
 		if actualTime >= time then
 			actualTime = 0
 			local node = route[nextBusStop][nextPosition]
@@ -83,7 +84,7 @@ function ServerManageRoute(routeId, vehicleNetId, nextBusStop)
 		Wait(100)
 		actualTime = actualTime + 0.1
 	end
-	print("Server lost control of the vehicle, passing control to player " .. NetworkGetEntityOwner(NetToVeh(vehicleNetId)))
+	print("Server lost control of the vehicle, passing control to player " .. NetworkGetEntityOwner(NetToEnt(vehicleNetId)))
 	-- At this point owner changed, so the vehicle gets managed by a client
 	ClientStartRoute(routeId, vehicleNetId, IncrementIndex(nextBusStop, #route))
 end
@@ -91,14 +92,14 @@ end
 -- Given the vehicle, the route id and the bus stop to reach, this function will create the ped inside the vehicle,
 -- and tells the client to start the route
 function ClientStartRoute(routeId, vehicleNetId, nextBusStop)
-	local target = NetworkGetEntityOwner(NetToVeh(vehicleNetId))
+	local target = NetworkGetEntityOwner(NetToEnt(vehicleNetId))
 	if vehicles[target] == nil then
 		vehicles[target] = {}
 	end
 	-- If there is no ped inside the vehicle, create one
-	local ped = GetPedInVehicleSeat(NetToVeh(vehicleNetId), -1)
+	local ped = GetPedInVehicleSeat(NetToEnt(vehicleNetId), -1)
 	if not DoesEntityExist(ped) then
-		ped = CreatePedInsideVehicle(NetToVeh(vehicleNetId), 0, GetHashKey("s_m_m_gentransport"), -1, true, false)
+		ped = CreatePedInsideVehicle(NetToEnt(vehicleNetId), 0, GetHashKey("s_m_m_gentransport"), -1, true, false)
 		while not DoesEntityExist(ped) do Wait(0) end
 	end
 	local pedNetId = NetworkGetNetworkIdFromEntity(ped)
@@ -110,16 +111,19 @@ function ClientStartRoute(routeId, vehicleNetId, nextBusStop)
 end
 
 function ManageOwnerChanged(src, vehicleNetId, position)
-	print("Managing owner changed", src, vehicleNetId)
-	while NetworkGetEntityOwner(NetToVeh(vehicleNetId)) == src do Wait(0) end
-	local target = NetworkGetEntityOwner(NetToVeh(vehicleNetId))
+	while NetworkGetEntityOwner(NetToEnt(vehicleNetId)) == src do Wait(0) end
+	local target = NetworkGetEntityOwner(NetToEnt(vehicleNetId))
 
 	local index = FindRouteInTable(src, vehicleNetId)
+	vehicles[src][index].position = position
 	local data = vehicles[src][index]
-	data.position = position
+	print("Managing owner changed", src, target, jso)
 	if target <= 0 then
 		table.insert(vehicles["server"], data)
 		table.remove(vehicles[src], index) 
+		if DoesEntityExist(NetToEnt(vehicles["server"][index].pedNetId)) then
+			DeleteEntity(NetToEnt(vehicles["server"][index].pedNetId))
+		end
 		ServerManageRoute(data.routeId, vehicleNetId, DecrementIndex(data.nextStop, #Config.Routes[data.routeId].busStops))
 	else
 		if vehicles[target] == nil then
@@ -151,7 +155,7 @@ function GetClosestNodeIdFromVehicle(position, vehNodes)
 	return index
 end
 
-function NetToVeh(netId)
+function NetToEnt(netId)
 	return NetworkGetEntityFromNetworkId(netId)
 end
 
@@ -184,8 +188,8 @@ end
 function CleanUp()
 	for id, playerData in pairs(vehicles) do
 		for i,data in ipairs(playerData) do
-			local veh = NetToVeh(data.vehicleNetId)
-			local ped = NetToVeh(data.pedNetId)
+			local veh = NetToEnt(data.vehicleNetId)
+			local ped = NetToEnt(data.pedNetId)
 			if DoesEntityExist(veh) then
 				DeleteEntity(veh)
 			end
@@ -208,26 +212,21 @@ AddEventHandler("spaw_test:saveRouteToFile", function(routeId, path)
 end)
 
 RegisterNetEvent("publictransport:ownerChanged")
-AddEventHandler("publictransport:ownerChanged", function(vehicleNetId)
+AddEventHandler("publictransport:ownerChanged", function(vehicleNetId, lastKnownPosition)
 	local src = source
-	if vehicles[src] ~= nil then
-		ManageOwnerChanged(src, vehicleNetId)
-	end
+	ManageOwnerChanged(src, vehicleNetId, lastKnownPosition)
 end)
 
--- TODO: test
--- This should be a good solution to the SetEntityCoords being a RPC. So using it only if a player is nearby a vehicle
--- will trigger the change of ownership and the vehicle will be managed by the client
 RegisterNetEvent("publictransport:playerNearVehicle")
 AddEventHandler("publictransport:playerNearVehicle", function(vehicleNetId, position, heading)
 	print("Player near vehicle", vehicleNetId, position, heading)
 	local src = source
 	SetPlayerCullingRadius(src, 999999.0)
-	SetEntityDistanceCullingRadius(NetToVeh(vehicleNetId), 999999.0)
-	SetEntityCoords(NetToVeh(vehicleNetId), position)
-	SetEntityHeading(NetToVeh(vehicleNetId), heading)
+	SetEntityDistanceCullingRadius(NetToEnt(vehicleNetId), 999999.0)
+	SetEntityCoords(NetToEnt(vehicleNetId), position)
+	SetEntityHeading(NetToEnt(vehicleNetId), heading)
 	SetPlayerCullingRadius(src, 0.0)
-	SetEntityDistanceCullingRadius(NetToVeh(vehicleNetId), 424.0)
+	SetEntityDistanceCullingRadius(NetToEnt(vehicleNetId), 424.0)
 	print("Done setting the vehicle")
 end)
 
