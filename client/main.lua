@@ -21,12 +21,6 @@ Citizen.CreateThread(function()
 	end
 end)
 
-
---[[
-Sol 1: Create the vehicle in the pos of a random player, set it invisible and no collision. If the "playerNearBusStop" event is triggered, 
-we can use SetEntityCoords to move the vehicle to the right position, and then set it visible and collision.
-]]
-
 -- ===========================
 -- 			FUNCTIONS
 -- ===========================
@@ -203,7 +197,7 @@ AddEventHandler("publictransport:addBlipForVehicle", function(vehicleNetId, colo
 end)
 
 RegisterNetEvent("publictransport:addBlipForCoords")
-AddEventHandler("publictransport:addBlipForCoords", function(position, vehicleNetId, color)
+AddEventHandler("publictransport:addBlipForCoords", function(routeId, position, vehicleNetId, color)
 	if blips[vehicleNetId] ~= nil then
 		RemoveBlip(blips[vehicleNetId])
 	end
@@ -221,7 +215,7 @@ AddEventHandler("publictransport:addBlipForCoords", function(position, vehicleNe
 		print("Player close enough")
 		local ret, nodePos = GetPointOnRoadSide(position.x, position.y, position.z, 1) -- used also 0 and -1
 		local ret, outPos, heading = GetClosestVehicleNodeWithHeading(nodePos.x, nodePos.y, nodePos.z, 1, 3.0, 0)
-		TriggerServerEvent("publictransport:playerNearVehicle", vehicleNetId, position, heading)
+		TriggerServerEvent("publictransport:playerNearVehicle", routeId, vehicleNetId, position, heading)
 	end
 	
 end)

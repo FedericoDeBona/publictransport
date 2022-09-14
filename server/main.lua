@@ -25,6 +25,7 @@ function StartNewRoute(routeId)
 	local hash = route.info.hash
 	local pos = route.busStops[1].pos
 	local heading = route.info.startHeading
+	local targetPos = GetEntityCoords(GetPlayerPed(target))
 	local vehicle = Citizen.InvokeNative(GetHashKey("CREATE_AUTOMOBILE"), GetHashKey(hash), pos, heading, true, false)
 	while not DoesEntityExist(vehicle) do Wait(0) end
 	--  Always suppose the owner of the vehicle is the server at the beginning
@@ -65,7 +66,7 @@ function ServerManageRoute(routeId, vehicleNetId, nextBusStop)
 			
 			-- TODO: test with IncrementIndex
 			nextPosition = (nextPosition+1)%(#route[nextBusStop]+1)
-			TriggerClientEvent("publictransport:addBlipForCoords", -1, vehicles["server"][index].position, vehicleNetId, Config.Routes[routeId].info.color)
+			TriggerClientEvent("publictransport:addBlipForCoords", -1, routeId, vehicles["server"][index].position, vehicleNetId, Config.Routes[routeId].info.color)
 			
 			if nextPosition == 0 then
 				nextBusStop = (nextBusStop+1)%#route
@@ -218,15 +219,20 @@ AddEventHandler("publictransport:ownerChanged", function(vehicleNetId, lastKnown
 end)
 
 RegisterNetEvent("publictransport:playerNearVehicle")
-AddEventHandler("publictransport:playerNearVehicle", function(vehicleNetId, position, heading)
+AddEventHandler("publictransport:playerNearVehicle", function(routeId, vehicleNetId, position, heading)
+	if NetworkGetEntityOwner(NetToEnt(vehicleNetId)) > 0 then
+		print("Entity is owned by a client, ignoring the playerNearVehicle")
+		return
+	end
 	print("Player near vehicle", vehicleNetId, position, heading)
 	local src = source
-	SetPlayerCullingRadius(src, 999999.0)
-	SetEntityDistanceCullingRadius(NetToEnt(vehicleNetId), 999999.0)
-	SetEntityCoords(NetToEnt(vehicleNetId), position)
-	SetEntityHeading(NetToEnt(vehicleNetId), heading)
-	SetPlayerCullingRadius(src, 0.0)
-	SetEntityDistanceCullingRadius(NetToEnt(vehicleNetId), 424.0)
+	local hash = Config.Routes[routeId].info.hash
+	local index = FindRouteInTable("server", vehicleNetId)
+	DeleteEtity(NetToEnt(vehileNetId))
+	local vehicle = Citizen.InvokeNative(GetHashKey("CREATE_AUTOMOBILE"), GetHashKey(hash), position, heading, true, false)
+	while not DoesEntityExist(vehicle) do Wait(0) end
+	local vehicleNetId = NetworkGetNetworkIdFromEntity(vehicle)
+	vehicles["server"][index].vehicleNetId = vehicleNetId
 	print("Done setting the vehicle")
 end)
 
