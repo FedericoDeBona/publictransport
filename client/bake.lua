@@ -31,34 +31,46 @@ RegisterCommand("bake", function(source, args)
 		RequestPathsPreferAccurateBoundingstruct(-8192.0, -8192.0, 8192.0, 8192.0)
 		Wait(0) 
 	end
-	print("Nodes loaded")
+	if vehicleNodes == nil or nodeLinks == nil then
+		print("Error: bake_data/vehicle_nodes.json or bake_data/node_links.json not found")
+		return
+	end
 	local i = 2
 	local currRoute = Config.Routes[routeId]
 	local path = {}
-	print("STARTING BAKE")
+	print("Star bake " .. routeId)
 	while i <= #currRoute.busStops do
-		table.insert(path, CalculateRouteBetweenTwoPoints(currRoute.busStops[i-1].pos, currRoute.busStops[i].pos))
-		print("PROGRESS: " .. (i-1) .. "/" .. #currRoute.busStops)
+		local p = CalculateRouteBetweenTwoPoints(currRoute.busStops[i-1].pos, currRoute.busStops[i].pos)
+		if p ~= nil then
+			table.insert(path, p)
+		else
+			print("Error calculating path between "..(i-1).." and ".. i .. " bus stops. Try to change the position of these bus stops.")
+			return
+		end
 		i = i + 1
 	end
 	-- Process the path from last busStop to the first one, since we started from the second one
-	print("PROGRESS: " .. (i-1) .. "/" .. #currRoute.busStops)
-	table.insert(path, CalculateRouteBetweenTwoPoints(currRoute.busStops[i-1].pos, currRoute.busStops[1].pos))
-	print("DONE BAKING")
+	local p = CalculateRouteBetweenTwoPoints(currRoute.busStops[i-1].pos, currRoute.busStops[1].pos)
+	if p ~= nil then
+		table.insert(path, p)
+	else
+		print("Error calculating path between "..(i-1).." and 1 bus stops. Try to change the position of these bus stops.")
+		return
+	end
+	print("Done baking " .. routeId)
 	-- At this point in 'path' you have all the nodes that the bus will follow, divided by bus stops
 	TriggerServerEvent("spaw_test:saveRouteToFile", routeId, path)
-	if Config.BakeDebug then
-		local blips = {}
-		for _, nodes in pairs(path) do
-			for _, node in pairs(nodes) do
-				table.insert(blips, AddBlipForCoord(node.x, node.y, node.z))
-			end
-		end
-		Wait(5000)
-		for _, blip in ipairs(blips) do
-			RemoveBlip(blip)
+	local blips = {}
+	for _, nodes in pairs(path) do
+		for _, node in pairs(nodes) do
+			table.insert(blips, AddBlipForCoord(node.x, node.y, node.z))
 		end
 	end
+	Wait(5000)
+	for _, blip in ipairs(blips) do
+		RemoveBlip(blip)
+	end
+
 end)
 
 -- Given a start and end position, it will return a table of nodes that build the path distantiated by the step
@@ -68,7 +80,7 @@ function CalculateRouteBetweenTwoPoints(startPos, endPos)
 	local node = CustomGetClosestVehicleNode(startPos)
 	local prevNode = node
 	table.insert(path, vector3(node.x, node.y, node.z))
-	
+	local attempts = 0
 	while CalculateTravelDistanceBetweenPoints(node.x, node.y, node.z, endPos) > 20.0 do
 		local minJ = -1
 		-- If the node has more than one node in his adjacency, search the one that minimize the distance to the destination
@@ -80,6 +92,7 @@ function CalculateRouteBetweenTwoPoints(startPos, endPos)
 		end
 		-- In some case no minJ is found (the cause seems to be CalculateTravelDistanceBetweenPoints, since for two different nodes returns the same distance)
 		if minJ == -1 then
+			attempts = attempts + 1
 			-- If the node i'm currently at has only 2 adjacent nodes, the next node is the one that is not the previous
 			if #nodeLinks[node.id] == 2 then
 				if prevNode.id == nodeLinks[node.id][1] then
@@ -92,16 +105,21 @@ function CalculateRouteBetweenTwoPoints(startPos, endPos)
 			else 
 				minJ = math.random(#nodeLinks[node.id])
 			end
+			Wait(0)
 		end
+		
 		prevNode = node
+		
 		node = vehicleNodes[nodeLinks[node.id][minJ]]
-
 		-- By doing this the path will have fewer equidisantiated nodes
 		step = step - #(vector3(node.x, node.y, node.z) - vector3(path[#path].x, path[#path].y, path[#path].z))
 		if step <= 0 then
 			table.insert(path, vector3(node.x, node.y, node.z))
 			step = Config.BakeStepUnits
-		end		
+		end
+		if attempts > 20 then
+			return nil
+		end
 	end
 	return path
 end

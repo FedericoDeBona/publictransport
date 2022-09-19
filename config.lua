@@ -1,14 +1,13 @@
 Config = {}
-Config.WaitTimeAtBusStop = 8 -- In seconds
+Config.WaitTimeAtBusStop = 8 -- (8) In seconds
 -- If you want to change this go here https://www.vespura.com/fivem/drivingstyle/
 -- There are some problems with traffic lights, sometimes the vehicle takes a weird path
 Config.DriveStyle = 2103615 
-Config.Speed = 120.0 -- old 20.0
+-- ========================
 -- BAKE PARAMS
 -- Distance between points in the baked path (used in CalculateRouteBetweenTwoPoints in bake.lua)
-Config.BakeStepUnits = 150.0
--- If true will show on the map the calculeted path after the bake (with /bake routeId)
-Config.BakeDebug = true
+Config.BakeStepUnits = 70.0
+Config.AverageSpeed = 20.0 -- 20 m/s about 72 km/h
 
 Config.Routes = {
 	{ 	-- Route: Central Garage -> First spawn point -> Vechileshop
@@ -16,12 +15,13 @@ Config.Routes = {
 		info = { 
 			color = 84, 
 			hash = "bus",
-			busNum = 0,
-			timeBetweenBus = 20, -- 40
+			numberOfBuses = 4,
+			timeBetweenBus = 40,
 			startHeading = 68.031
 		},
 		busStops = {
 			{ pos = vector3(234.9626, -829.2527, 29.98755), stop = true },
+			{ pos = vector3(-11.06, -875.13, 30.09), stop = false },
 			{ pos = vector3(-232.1934, -983.7758, 28.60583), stop = true },
 			{ pos = vector3(-68.75604, -1078.668, 26.97144), stop = true },
 			{ pos = vector3(176.8747, -1030.365, 29.3136), stop = false },
@@ -32,14 +32,14 @@ Config.Routes = {
 		-- routeId = 2
 		info = { 
 			color = 22, 
-			hash = "zentorno",
-			busNum = 0,
+			hash = "Coach",
+			numberOfBuses = 3,
 			timeBetweenBus = 120,
-			startHeading = 215.433
+			startHeading = 215.433,
 		},
 		busStops = {
 			{ pos = vector3(227.26, -853.93, 29.94), stop = true },
-			{ pos = vector3(2907.32, 4153.93, 50.39), stop = true },
+			{ pos = vector3(2896.43, 4151.39, 50.31), stop = true },
 			{ pos = vector3(202.79, 6567.09, 32.01), stop = true },
 			{ pos = vector3(-2733.92, 2275.52, 20.01), stop = true },
 			{ pos = vector3(-1873.32, -565.0, 11.64), stop = false }
@@ -49,9 +49,9 @@ Config.Routes = {
 	{
 		info = { 
 			color = 24, -- Route color https://wiki.gtanet.work/index.php?title=Blips#Blip_Colors
-			hash = "coach", -- hash of vehicle to use ("coach", "pbus", "pbus2" ...) https://wiki.gtanet.work/index.php?title=Vehicle_Models
-			busNum = 1, -- number of buses per route (>= 1)
-			timeBetweenBus = 40, -- Time between buses in seconds. So there will be 4 buses in total for this route, one every 40 seconds
+			hash = "bus", -- hash of vehicle to use ("coach", "pbus", "pbus2" ...) https://wiki.gtanet.work/index.php?title=Vehicle_Models
+			numberOfBuses = 2, -- number of buses per route (>= 1)
+			timeBetweenBus = 60, -- Time between buses in seconds. So there will be 4 buses in total for this route, one every 40 seconds
 			startHeading = 215.433 -- First spawn will be at first bus stop with this heading
 		},
 		busStops = {
