@@ -2,9 +2,6 @@ local blips = {}
 
 -- Create the bus stop blips
 Citizen.CreateThread(function()
-	-- todo:remove
-	DisableIdleCamera(true)
-	
 	for _, route in ipairs(Config.Routes) do
 		for _, curr in ipairs(route.busStops) do
 			if curr.stop == true then 
@@ -168,7 +165,7 @@ AddEventHandler("publictransport:restoreRoute", function(routeId, busNum, vehicl
 		ClearPedTasks(ped)
 		SetupPedAndVehicle(ped, vehicle, position)
 		--TriggerEvent("publictransport:addBlipForVehicle", routeId, busNum, vehicleNetId, Config.Routes[routeId].info.color)
-		TriggerServerEvent("publictransport:addBlipsForEveryone", routeId, busNum, vehicleNetId)
+		TriggerServerEvent("publictransport:addBlipsForEveryone", routeId, busNum, vehicleNetId, Config.Routes[routeId].info.color)
 		DoDriverJob(routeId, busNum, ped, vehicle, nextStop)
 	else
 		print("ERROR: Vehicle or ped does not exist")
@@ -196,7 +193,6 @@ end)
 
 RegisterNetEvent("publictransport:addBlipForCoords")
 AddEventHandler("publictransport:addBlipForCoords", function(routeId, busNum, position, nextNodePosition, color, checkForDistance)
-	if NetworkGetEntityOwner()
 	if blips[routeId] == nil then blips[routeId] = {} end
 	if not DoesBlipExist(blips[routeId][busNum]) then	
 		local blip = AddBlipForCoord(position)
@@ -225,21 +221,4 @@ AddEventHandler("onResourceStop", function(resName)
 	if GetCurrentResourceName() == resName then
 		CleanUp()
 	end
-end)
-
--- todo:remove
-RegisterCommand("draw", function()
-	local targetCoords = vector3(2907.32, 4153.93, 50.39)
-	local ret, pos = GetPointOnRoadSide(targetCoords.x, targetCoords.y, targetCoords.z, 1) -- 0 left side, 1 right side, -1 random
-	local ret, outPos, heading = GetClosestVehicleNodeWithHeading(pos.x, pos.y, pos.z, 1, 0.0, 3.0)
-	SetEntityHeading(PlayerPedId(), heading)
-	while true do
-		DrawSphere(pos, 1.0, 255.0, 0.0, 0.0, 1.0)
-		Wait(0)
-	end
-end)
-
--- Todo:remove
-RegisterCommand("stop", function()
-	SetEntityCoords(PlayerPedId(), vector3(2907.32, 4153.93, 50.39))
 end)

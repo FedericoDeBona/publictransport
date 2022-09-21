@@ -1,5 +1,5 @@
 Config = {}
-Config.WaitTimeAtBusStop = 8 -- (8) In seconds
+Config.WaitTimeAtBusStop = 8 -- In seconds
 -- If you want to change this go here https://www.vespura.com/fivem/drivingstyle/
 -- There are some problems with traffic lights, sometimes the vehicle takes a weird path
 Config.DriveStyle = 2103615 

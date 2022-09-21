@@ -75,7 +75,7 @@ function ServerManageRoute(data, bakedRoutePart)
 			local nextNodePosition = vector3(route[bakedRoutePart][nextPosition].x, route[bakedRoutePart][nextPosition].y, route[bakedRoutePart][nextPosition].z)
 			TriggerClientEvent("publictransport:addBlipForCoords", -1, data.routeId, data.busNum, data.position, nextNodePosition, Config.Routes[data.routeId].info.color, true)
 			-- Reached a bus stop, waiting if needed
-			if nextPosition == 1 and Config.Routes[data.routId].busStops[bakedRoutePart].stop == true then Wait(Config.WaitTimeAtBusStop*1000.0) end
+			if nextPosition == 1 and Config.Routes[data.routeId].busStops[bakedRoutePart].stop == true then Wait(Config.WaitTimeAtBusStop*1000.0) end
 		end
 		Wait(100)
 		actualTime = actualTime + 0.1
@@ -222,11 +222,12 @@ AddEventHandler("publictransport:playerNearVehicle", function(routeId, busNum, p
 end)
 
 RegisterNetEvent("publictransport:addBlipsForEveryone")
-AddEventHandler("publictransport:addBlipsForEveryone", function(routeId, busNum, vehicleNetId)
+AddEventHandler("publictransport:addBlipsForEveryone", function(routeId, busNum, vehicleNetId, color)
 	local veh = NetToEnt(vehicleNetId)
+	while routes[routeId][busNum].owner == "server" do Wait(0) end
 	while DoesEntityExist(veh) and routes[routeId][busNum].owner ~= "server" do
-		TriggerClientEvent("publictransport:addBlipForCoords", -1, GetEntityCoords(veh), routeId, busNum, vehicleNetId, false)
-		Wait(5000)
+		TriggerClientEvent("publictransport:addBlipForCoords", -1, routeId, busNum, GetEntityCoords(veh), nil, color, false)
+		Wait(2500)
 	end
 end)
 
