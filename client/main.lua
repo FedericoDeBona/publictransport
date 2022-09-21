@@ -32,32 +32,22 @@ function DoDriverJob(routeId, busNum, ped, vehicle, busStop)
 		repeat 
 			SetVehicleOnGroundProperly(vehicle, 5.0)
 			ClearPedTasks(ped)
-			TaskVehicleDriveToCoord(ped, vehicle, coords.x, coords.y, coords.z, 70.0, 0, GetEntityModel(vehicle), Config.DriveStyle, 1.0, false) -- last bool looks like avoidHighway
-			
-			--TaskVehicleDriveToCoordLongrange(ped, vehicle, coords, speed, Config.DriveStyle, 18.0)
+			TaskVehicleDriveToCoordLongrange(ped, vehicle, coords, 70.0, Config.DriveStyle, 50.0)
 			DoStuckCheck(vehicle)
 			Wait(500)
-		until not CanGoOn(vehicle) or GetScriptTaskStatus(ped, 0x93A5526E) > 1 or GetEntitySpeed(vehicle) > 1.0
-			--until not CanGoOn(vehicle) or GetScriptTaskStatus(ped, 567490903) > 1 or GetEntitySpeed(vehicle) > 1.0
+		until not CanGoOn(vehicle) or GetScriptTaskStatus(ped, 567490903) > 1 or GetEntitySpeed(vehicle) > 1.0
 		-- The bus started, now it's driving to the coords
-		while CanGoOn(vehicle) and GetScriptTaskStatus(ped, 0x93A5526E) ~= 7 and math.abs(Vdist2(GetEntityCoords(vehicle), coords)) > 6400.0 do 
+		while CanGoOn(vehicle) and GetScriptTaskStatus(ped, 567490903) ~= 7 do
 			lastKnownPosition = GetEntityCoords(vehicle)
 			DoStuckCheck(vehicle)
 			Wait(500)
 		end
-		-- The bus is near the bus stop, now it tries to park
-		if CanGoOn(vehicle) and routeInfo.stop == true then
-			TaskVehiclePark(ped, vehicle, coords, GetEntityHeading(vehicle), 3, 30.0, true)
+		-- The bus is near the bus stop, now it tries to park	
+		if routeInfo.stop == true then
+			TaskVehicleDriveToCoord(ped, vehicle, coords, 7.0, 0, GetEntityModel(vehicle), Config.DriveStyle, 1.0)
 			local timer = GetGameTimer()
-			local exit = true
-			-- If there are problems parking, the task get cleared
-			while CanGoOn(vehicle) and GetScriptTaskStatus(ped, -272084098) ~= 7 and exit do
-				lastKnownPosition = GetEntityCoords(vehicle)
-				if GetGameTimer() - timer > 4000 then
-					exit = false
-					ClearPedTasks(ped)
-				end
-				Wait(500)
+			while CanGoOn(vehicle) and not IsVehicleStopped(vehicle) and (GetGameTimer()-timer<4000) do
+				Wait(100)
 			end
 			-- Waiting at the bus stop
 			Wait(Config.WaitTimeAtBusStop*1000)
@@ -164,31 +154,11 @@ AddEventHandler("publictransport:restoreRoute", function(routeId, busNum, vehicl
 		SetVehicleOnGroundProperly(vehicle, 5.0)
 		ClearPedTasks(ped)
 		SetupPedAndVehicle(ped, vehicle, position)
-		--TriggerEvent("publictransport:addBlipForVehicle", routeId, busNum, vehicleNetId, Config.Routes[routeId].info.color)
 		TriggerServerEvent("publictransport:addBlipsForEveryone", routeId, busNum, vehicleNetId, Config.Routes[routeId].info.color)
 		DoDriverJob(routeId, busNum, ped, vehicle, nextStop)
 	else
 		print("ERROR: Vehicle or ped does not exist")
 	end
-end)
-
-RegisterNetEvent("publictransport:addBlipForVehicle")
-AddEventHandler("publictransport:addBlipForVehicle", function(routeId, busNum, vehicleNetId, color)
-	if blips[routeId] == nil then blips[routeId] = {} end
-	if blips[routeId][busNum] ~= nil then
-		RemoveBlip(blips[routeId][busNum])
-	end
-	while not NetworkDoesNetworkIdExist(vehicleNetId) do Wait(0) end
-	local vehicle = NetToVeh(vehicleNetId)
-	local blip = AddBlipForEntity(vehicle)
-	SetBlipSprite(1, 463)
-	SetBlipColour(blip, color)
-	SetBlipScale(blip, 0.5)
-	SetBlipAsShortRange(blip, true)
-	BeginTextCommandSetBlipName('STRING')
-	AddTextComponentSubstringPlayerName("Bus " .. color)
-	EndTextCommandSetBlipName(blip)
-	blips[routeId][busNum] = blip
 end)
 
 RegisterNetEvent("publictransport:addBlipForCoords")

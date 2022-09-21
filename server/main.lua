@@ -1,10 +1,6 @@
 local bakedRoutes = {}
 local routes = {}
 
---TODO FIX:
--- on addBlipForVehicle client side, all other clients won't see the blip -- todo:test
-
-
 -- Initialize all the routes
 Citizen.CreateThread(function()
 	-- https://forum.cfx.re/t/help-triggerclientevent-on-resourcestart/683698
