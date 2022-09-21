@@ -1,9 +1,10 @@
 --[[
 Consider the roads system as a graph, so we have G=(V,E) where V are the nodes (saved in bake_data/vehicle_nodes.json)
-and E are the edges (saved in bake_data/nodeLinks.json). Specifically G is an undirected, unwieghted graph.
+and E are the edges (saved in bake_data/nodeLinks.json). These files are from 'common.rpf\data\levels\gta5\paths.xml'
+Specifically G is an undirected, unwieghted graph.
 Now, the ideal solution would be using Dijkstra's algorithm to find the shortest path between two nodes, but
 I didn't managed to make it work, so instead I used a naive approach that works well enough.
-This approach uses the CalculateRouteBetweenTwoPoints native, so the problem is reduced to finding the closest
+This approach uses the FindPathBetweenTwoPoints native, so the problem is reduced to finding the closest
 node, in the adjacency list of the current node, to the destination node. 
 Now, iterating this alogrithm until we are close enough to the destination node, we will end up with a path.
 This path will be saved in a file and the server will use it to simulate the vehicle movement when no players
@@ -20,13 +21,14 @@ RegisterCommand("bake", function(source, args)
 	end
 	local routeId = tonumber(args[1])
 	if routeId > #Config.Routes then
-		print("Error: route id is too big")
+		print("Error: route id does not exist")
 		return
 	end
+	-- Load the nodes and edges file
 	vehicleNodes = json.decode(LoadResourceFile(GetCurrentResourceName(), "bake_data/vehicle_nodes.json"))
 	nodeLinks = json.decode(LoadResourceFile(GetCurrentResourceName(), "bake_data/node_links.json"))
 	
-	-- Load the nodes from all the map (used for the CalculateTravelDistanceBetweenPoints native)
+	-- Load the nodes from all the map
 	while not AreNodesLoadedForArea(-8192.0, -8192.0, 8192.0, 8192.0) do 
 		RequestPathsPreferAccurateBoundingstruct(-8192.0, -8192.0, 8192.0, 8192.0)
 		Wait(0) 
@@ -35,12 +37,13 @@ RegisterCommand("bake", function(source, args)
 		print("Error: bake_data/vehicle_nodes.json or bake_data/node_links.json not found")
 		return
 	end
+	-- Since the first record in busStops is the starting point, we start the algorithm from the second one
 	local i = 2
 	local currRoute = Config.Routes[routeId]
 	local path = {}
 	print("Star bake " .. routeId)
 	while i <= #currRoute.busStops do
-		local p = CalculateRouteBetweenTwoPoints(currRoute.busStops[i-1].pos, currRoute.busStops[i].pos)
+		local p = FindPathBetweenTwoPoints(currRoute.busStops[i-1].pos, currRoute.busStops[i].pos)
 		if p ~= nil then
 			table.insert(path, p)
 		else
@@ -50,7 +53,7 @@ RegisterCommand("bake", function(source, args)
 		i = i + 1
 	end
 	-- Process the path from last busStop to the first one, since we started from the second one
-	local p = CalculateRouteBetweenTwoPoints(currRoute.busStops[i-1].pos, currRoute.busStops[1].pos)
+	local p = FindPathBetweenTwoPoints(currRoute.busStops[i-1].pos, currRoute.busStops[1].pos)
 	if p ~= nil then
 		table.insert(path, p)
 	else
@@ -73,14 +76,18 @@ RegisterCommand("bake", function(source, args)
 
 end)
 
--- Given a start and end position, it will return a table of nodes that build the path distantiated by the step
-function CalculateRouteBetweenTwoPoints(startPos, endPos)
+-- Given a start and end position, it will return a table of nodes that build the path, each node
+-- distantiated by Config.BakeStepUnits
+function FindPathBetweenTwoPoints(startPos, endPos)
 	local path = {}
 	local step = Config.BakeStepUnits
+	-- Custom function to find the closest vehicle node in vehicle_node.json from a given position
 	local node = CustomGetClosestVehicleNode(startPos)
 	local prevNode = node
+	-- Insert the first node in the path
 	table.insert(path, vector3(node.x, node.y, node.z))
 	local attempts = 0
+	-- Iterate until we are close enough to the destination node
 	while CalculateTravelDistanceBetweenPoints(node.x, node.y, node.z, endPos) > 20.0 do
 		local minJ = -1
 		-- If the node has more than one node in his adjacency, search the one that minimize the distance to the destination
@@ -109,14 +116,14 @@ function CalculateRouteBetweenTwoPoints(startPos, endPos)
 		end
 		
 		prevNode = node
-		
 		node = vehicleNodes[nodeLinks[node.id][minJ]]
-		-- By doing this the path will have fewer equidisantiated nodes
+		-- By doing this the path will have equidisantiated nodes
 		step = step - #(vector3(node.x, node.y, node.z) - vector3(path[#path].x, path[#path].y, path[#path].z))
 		if step <= 0 then
 			table.insert(path, vector3(node.x, node.y, node.z))
 			step = Config.BakeStepUnits
 		end
+		-- In some cases the algorithm gets stuck in a loop, so if it happens the function returns nil
 		if attempts > 20 then
 			return nil
 		end

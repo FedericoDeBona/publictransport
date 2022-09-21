@@ -2,8 +2,7 @@ local bakedRoutes = {}
 local routes = {}
 
 --TODO FIX:
--- When server manage, add the time of Config.WaitTimeAtBusStop
--- on addBlipForVehicle client side, all other clients won't see the blip
+-- on addBlipForVehicle client side, all other clients won't see the blip -- todo:test
 
 
 -- Initialize all the routes
@@ -49,6 +48,7 @@ function ServerManageRoute(data, bakedRoutePart)
 	local time = Config.BakeStepUnits / Config.AverageSpeed
 	local actualTime = time
 
+	-- Delete the ped and bus
 	local vehicle = NetToEnt(data.vehicleNetId)
 	local ped = GetPedInVehicleSeat(vehicle, -1)
 	while DoesEntityExist(ped) do
@@ -67,15 +67,15 @@ function ServerManageRoute(data, bakedRoutePart)
 			-- Need to fake the movement of the bus even if it exists, since SetEntityCoords is a RPC, so if no one is near the bus, it won't work
 			data.position = vector3(node.x, node.y, node.z)
 			nextPosition = IncrementIndex(nextPosition, #route[bakedRoutePart])
+			-- Reached the next bus stop
 			if nextPosition == 1 then
-				-- Reached the next bus stop
 				bakedRoutePart = IncrementIndex(bakedRoutePart, #route)
 				data.nextStop = IncrementIndex(bakedRoutePart, #route)
 			end
 			local nextNodePosition = vector3(route[bakedRoutePart][nextPosition].x, route[bakedRoutePart][nextPosition].y, route[bakedRoutePart][nextPosition].z)
 			TriggerClientEvent("publictransport:addBlipForCoords", -1, data.routeId, data.busNum, data.position, nextNodePosition, Config.Routes[data.routeId].info.color, true)
-			-- Reached a bus stop, waiting
-			if nextPosition == 1 then Wait(Config.WaitTimeAtBusStop*1000.0) end
+			-- Reached a bus stop, waiting if needed
+			if nextPosition == 1 and Config.Routes[data.routId].busStops[bakedRoutePart].stop == true then Wait(Config.WaitTimeAtBusStop*1000.0) end
 		end
 		Wait(100)
 		actualTime = actualTime + 0.1
@@ -104,6 +104,7 @@ function ManageOwnerChanged(data, position)
 	end
 end
 
+-- Utility function to get the closest node from a position using the baked data
 function GetClosestNodeIdFromVehicle(position, vehNodes)
 	local closestNode = nil
 	local index = nil
@@ -124,10 +125,12 @@ function GetClosestNodeIdFromVehicle(position, vehNodes)
 	return index
 end
 
+-- Utility function to have clean code
 function NetToEnt(netId)
 	return NetworkGetEntityFromNetworkId(netId)
 end
 
+-- Utility function to increment an index, looping back to 1 if needed
 function IncrementIndex(num, length)
 	if num+1 > length then
 		return 1
@@ -136,6 +139,7 @@ function IncrementIndex(num, length)
 	end
 end
 
+-- Utility function to decrement an index, looping back to length if needed
 function DecrementIndex(num, length)
 	if num-1 <= 0 then
 		return length
@@ -164,17 +168,19 @@ end
 -- =========================
 -- 			EVENTS
 -- =========================
--- Event that takes the baked path of a specific route and save it to file
+-- Takes the baked path of a specific route and save it to file
 RegisterNetEvent("spaw_test:saveRouteToFile")
 AddEventHandler("spaw_test:saveRouteToFile", function(routeId, path)
 	SaveResourceFile(GetCurrentResourceName(), "bake_data/baked_routes/route_"..routeId..".json", json.encode(path), -1)
 end)
 
+-- Triggered when a client loses the ownership of a bus
 RegisterNetEvent("publictransport:ownerChanged")
 AddEventHandler("publictransport:ownerChanged", function(routeId, busNum, lastKnownPosition)
 	ManageOwnerChanged(routes[routeId][busNum], lastKnownPosition)
 end)
 
+-- Triggered when a client is close enough to a bus to take control of it
 RegisterNetEvent("publictransport:playerNearVehicle")
 AddEventHandler("publictransport:playerNearVehicle", function(routeId, busNum, position, heading)
 	local src = source
@@ -186,7 +192,6 @@ AddEventHandler("publictransport:playerNearVehicle", function(routeId, busNum, p
 	end
 	data.changingOwner = true
 	local hash = Config.Routes[routeId].info.hash
-	--vehicle = Citizen.InvokeNative(GetHashKey("CREATE_AUTOMOBILE"), GetHashKey(hash), position, heading, true, false)
 	vehicle = CreateVehicle(GetHashKey(hash), position, heading, true, false)
 	
 	while not DoesEntityExist(vehicle) do Wait(0) end
@@ -218,15 +223,15 @@ end)
 
 RegisterNetEvent("publictransport:addBlipsForEveryone")
 AddEventHandler("publictransport:addBlipsForEveryone", function(routeId, busNum, vehicleNetId)
-	while routes[routeId][busNum].owner ~= "server" do
-		TriggerClientEvent("publictransport:addBlipForCoords", -1, GetEntityCoords(NetToEnt(vehicleNetId)), routeId, busNum, vehicleNetId, false)
+	local veh = NetToEnt(vehicleNetId)
+	while DoesEntityExist(veh) and routes[routeId][busNum].owner ~= "server" do
+		TriggerClientEvent("publictransport:addBlipForCoords", -1, GetEntityCoords(veh), routeId, busNum, vehicleNetId, false)
 		Wait(5000)
 	end
 end)
 
 RegisterNetEvent("publictransport:updateNextStop")
 AddEventHandler("publictransport:updateNextStop", function(routeId, busNum, nextStop)
-	local src = source
 	routes[routeId][busNum].nextStop = nextStop
 end)
 
