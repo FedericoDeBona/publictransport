@@ -84,8 +84,9 @@ function ManageOwnerChanged(data, position)
 	data.position = position
 	
 	print("Managing owner changed, now " .. owner)
-	if owenr == 0 then
+	if owner == 0 then
 		print("Error: owner is 0")
+		return
 	end
 	if owner < 0 then
 		data.owner = "server"
