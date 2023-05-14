@@ -4,7 +4,7 @@ game 'gta5'
 name "publictransport"
 description "Auto driven transports with in-game AI"
 author "Scorpion01"
-version "2.1"
+version "2.2"
 
 client_scripts {
 	'client/main.lua',
