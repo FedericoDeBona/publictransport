@@ -171,7 +171,7 @@ AddEventHandler("publictransport:addBlipForCoords", function(routeId, busNum, po
 		SetBlipScale(blip, 0.5)
 		SetBlipAsShortRange(blip, true)
 		BeginTextCommandSetBlipName('STRING')
-		AddTextComponentSubstringPlayerName("Bus " .. color)
+		AddTextComponentSubstringPlayerName("Bus " .. Config.Routes[routeId].info.number)
 		EndTextCommandSetBlipName(blip)
 		blips[routeId][busNum] = blip
 	else
