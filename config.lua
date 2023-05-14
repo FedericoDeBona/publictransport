@@ -2,7 +2,7 @@ Config = {}
 Config.WaitTimeAtBusStop = 8 -- In seconds
 -- If you want to change this go here https://www.vespura.com/fivem/drivingstyle/
 -- There are some problems with traffic lights, sometimes the vehicle takes a weird path
-Config.DriveStyle = 2103615 
+Config.DriveStyle = 786603
 -- ========================
 -- BAKE PARAMS
 -- Distance between points in the baked path
