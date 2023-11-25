@@ -15,6 +15,6 @@ Completely standalone, no framework or resources needed
     * when adding a new stop in the busStops array, **avoid** to get the position in the middle of a crossroad
 2. Once you've done it, restart the resource and use the command ```/bake routeId```, where **routeId** is the position of the route in the Config.Routes table.
 3. As soon as the bake is done (check client console for errors), you will see on the map some blips indicating the route just calculated (for few seconds) and a file will be saved in /bake_data/baked_routes/.
-4. Do a ```/refresh``` since there are a new files, and ```/restart publictransprot```.
+4. Do a ```/refresh``` since there are a new files, and ```/restart publictransport```.
 5. You are done. Everything should start working fine.<br>
 **Tip:** once you have done baking the new routes, remove from the fxmanifest.lua file ```'client/bake.lua'``` line, so no one will be able to run the ```/bake```
