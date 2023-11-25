@@ -193,7 +193,7 @@ AddEventHandler("publictransport:playerNearVehicle", function(routeId, busNum, p
 	
 	while not DoesEntityExist(vehicle) do Wait(0) end
 	local attempts = 0
-	local ped = nil
+	--[[ local ped = nil
 	while not DoesEntityExist(GetPedInVehicleSeat(vehicle, -1)) do 
 		ped = CreatePedInsideVehicle(vehicle, 0, GetHashKey("s_m_m_gentransport"), -1, true, false)
 		attempts = attempts + 1
@@ -202,9 +202,10 @@ AddEventHandler("publictransport:playerNearVehicle", function(routeId, busNum, p
 			data.changingOwner = false
 			DeleteEntity(vehicle)
 			return
+			break
 		end
 		Wait(100)
-	end
+	end ]]
 	
 	local vehicleNetId = NetworkGetNetworkIdFromEntity(vehicle)
 	local owner = NetworkGetEntityOwner(vehicle)

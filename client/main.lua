@@ -146,6 +146,12 @@ AddEventHandler("publictransport:restoreRoute", function(routeId, busNum, vehicl
 		return
 	end
 	local ped = GetPedInVehicleSeat(vehicle, -1)
+	if not DoesEntityExist(ped) then
+	RequestModel(GetHashKey("s_m_m_gentransport"))
+		while not HasModelLoaded(GetHashKey("s_m_m_gentransport")) do Wait(0) end
+		ped = CreatePedInsideVehicle(vehicle, 0, GetHashKey("s_m_m_gentransport"), -1, true, false)
+	end
+	while not DoesEntityExist(ped) do Wait(0) end
 	local pedNetId = PedToNet(ped)
 	DoRequestNetControl(pedNetId)
 	DoRequestNetControl(vehicleNetId)
