@@ -20,7 +20,7 @@ Config.Routes = {
 			startHeading = 68.031 -- Spawn heding
 		},
 		busStops = {
-			{ pos = vector3(234.9626, -829.2527, 29.98755), stop = true }, -- The first bus stop is also the spawn point
+			{ pos = vector3(235.2659,-833.3406, 30.12231), stop = true }, -- The first bus stop is also the spawn point
 			{ pos = vector3(-11.06, -875.13, 30.09), stop = false },  -- stop = false -> the bus won't stop but is forced to pass here
 			{ pos = vector3(-232.1934, -983.7758, 28.60583), stop = true },
 			{ pos = vector3(-68.75604, -1078.668, 26.97144), stop = true },

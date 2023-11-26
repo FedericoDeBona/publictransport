@@ -10,7 +10,9 @@ Citizen.CreateThread(function()
 		routes[routeId] = {}
 		Citizen.CreateThread(function()
 			for i=1, v.info.numberOfBuses do
-				StartNewRoute(routeId, i)
+				Citizen.CreateThread(function()
+					StartNewRoute(routeId, i)
+				end)
 				Wait(v.info.timeBetweenBus*1000)
 			end
 		end)
@@ -21,11 +23,12 @@ end)
 -- 			FUNCTIONS
 -- ===========================
 function StartNewRoute(routeId, busNum)
+	
 	local route = Config.Routes[routeId]
 	local hash = route.info.hash
 	local pos = route.busStops[1].pos
 	local heading = route.info.startHeading
-	routes[routeId][busNum] = {owner = "server", position = pos, changingOwner = false, vehicleNetId = 0, pedNetId = nil, routeId = routeId, busNum = busNum, nextStop = 2, color = Config.Routes[routeId].info.color}
+	routes[routeId][busNum] = {owner = "server", position = pos, changingOwner = false, vehicleNetId = 0, routeId = routeId, busNum = busNum, nextStop = 2, color = Config.Routes[routeId].info.color}
 	ServerManageRoute(routes[routeId][busNum], 1)
 end
 
@@ -83,17 +86,8 @@ function ManageOwnerChanged(data, position)
 	local owner = NetworkGetEntityOwner(NetToEnt(data.vehicleNetId))
 	data.position = position
 	
-	print("Managing owner changed, now " .. owner)
-	if owner == 0 then
-		print("Error: owner is 0")
-		return
-	end
-	if owner < 0 then
+	if owner <= 0 then
 		data.owner = "server"
-		local ped = NetToEnt(data.pedNetId)
-		if DoesEntityExist(ped) then
-			DeleteEntity(ped)
-		end
 		ServerManageRoute(data, DecrementIndex(data.nextStop, #Config.Routes[data.routeId].busStops))
 	else
 		data.owner = owner
@@ -122,7 +116,6 @@ function GetClosestNodeIdFromVehicle(position, vehNodes)
 	return index
 end
 
--- Utility function to have clean code
 function NetToEnt(netId)
 	return NetworkGetEntityFromNetworkId(netId)
 end
@@ -148,13 +141,15 @@ end
 function CleanUp()
 	for routeId, buses in ipairs(routes) do
 		for busNum, data in ipairs(buses) do
-			local veh = NetToEnt(data.vehicleNetId)
-			local ped = NetToEnt(data.pedNetId)
-			if DoesEntityExist(veh) then
-				DeleteEntity(veh)
-			end
-			if DoesEntityExist(ped) then
+			local vehicle = NetToEnt(data.vehicleNetId)
+			local ped = GetPedInVehicleSeat(vehicle, -1)
+			while DoesEntityExist(ped) do
 				DeleteEntity(ped)
+				Wait(0)
+			end
+			while DoesEntityExist(vehicle) do
+				DeleteEntity(vehicle)
+				Wait(0)
 			end
 		end
 	end
@@ -189,23 +184,15 @@ AddEventHandler("publictransport:playerNearVehicle", function(routeId, busNum, p
 	end
 	data.changingOwner = true
 	local hash = Config.Routes[routeId].info.hash
+	
+	local ped = GetPedInVehicleSeat(vehicle, -1)
+	while DoesEntityExist(ped) do
+		DeleteEntity(ped)
+		Wait(0)
+	end
 	vehicle = CreateVehicle(GetHashKey(hash), position, heading, true, false)
 	
 	while not DoesEntityExist(vehicle) do Wait(0) end
-	local attempts = 0
-	--[[ local ped = nil
-	while not DoesEntityExist(GetPedInVehicleSeat(vehicle, -1)) do 
-		ped = CreatePedInsideVehicle(vehicle, 0, GetHashKey("s_m_m_gentransport"), -1, true, false)
-		attempts = attempts + 1
-		if attempts > 30 then
-			print("Error: couldn't create ped in vehicle, source: " .. src)
-			data.changingOwner = false
-			DeleteEntity(vehicle)
-			return
-			break
-		end
-		Wait(100)
-	end ]]
 	
 	local vehicleNetId = NetworkGetNetworkIdFromEntity(vehicle)
 	local owner = NetworkGetEntityOwner(vehicle)
@@ -249,4 +236,9 @@ AddEventHandler("onResourceStop", function(resName)
 	if GetCurrentResourceName() == resName then
 		CleanUp()
 	end
+end)
+
+RegisterCommand("getcoords", function(source)
+	local s = source
+	print(GetEntityCoords(GetPlayerPed(s)))
 end)
