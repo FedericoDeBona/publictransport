@@ -33,7 +33,7 @@ Config.Routes = {
 		info = { 
 			color = 22, 
 			hash = "coach",
-			numberOfBuses = 3,
+			numberOfBuses = 5,
 			timeBetweenBus = 120,
 			startHeading = 215.433,
 		},
@@ -50,7 +50,7 @@ Config.Routes = {
 		info = { 
 			color = 24, 
 			hash = "bus", 
-			numberOfBuses = 2,
+			numberOfBuses = 4,
 			timeBetweenBus = 60, 
 			startHeading = 215.433 
 		},

@@ -31,7 +31,7 @@ function DoDriverJob(routeId, busNum, ped, vehicle, busStop)
 		-- Starting the bus. In a loop since sometimes the bus doesn't start
 		repeat 
 			SetVehicleOnGroundProperly(vehicle, 5.0)
-			ClearPedTasks(ped)
+			--ClearPedSecondaryTask(ped)
 			TaskVehicleDriveToCoordLongrange(ped, vehicle, coords, 70.0, Config.DriveStyle, 50.0)
 			DoStuckCheck(vehicle)
 			Wait(500)
@@ -50,7 +50,10 @@ function DoDriverJob(routeId, busNum, ped, vehicle, busStop)
 				Wait(100)
 			end
 			-- Waiting at the bus stop
-			Wait(Config.WaitTimeAtBusStop*1000)
+			local timer = GetGameTimer()
+			while CanGoOn(vehicle) and ((GetGameTimer()-timer)<(Config.WaitTimeAtBusStop*1000)) do
+				Wait(100)
+			end
 		end
 		-- Before starting the next loop, the bus stop is incremented and it's updated on the server
 		if CanGoOn(vehicle) then
@@ -64,7 +67,8 @@ end
 
 -- Function to check if the bus exists on the client and the client has the control of it
 function CanGoOn(vehicle)
-	return DoesEntityExist(vehicle) and NetworkHasControlOfNetworkId(VehToNet(vehicle))
+	local ped = GetPedInVehicleSeat(vehicle, -1)
+	return DoesEntityExist(vehicle) and NetworkHasControlOfNetworkId(VehToNet(vehicle)) and DoesEntityExist(ped) and NetworkHasControlOfNetworkId(PedToNet(ped))
 end
 
 -- Function will make the vehicle indestructible, the ped invicible and not carjackable
@@ -145,17 +149,19 @@ AddEventHandler("publictransport:restoreRoute", function(routeId, busNum, vehicl
 		print("On restoureRoute vehicle does not exist")
 		return
 	end
-	local ped = GetPedInVehicleSeat(vehicle, -1)
+	local ped = GetPedInVehicleSeat(vehicle, -1, true)
+
 	if not DoesEntityExist(ped) then
 		RequestModel(GetHashKey("s_m_m_gentransport"))
 		while not HasModelLoaded(GetHashKey("s_m_m_gentransport")) do Wait(0) end
 		ped = CreatePedInsideVehicle(vehicle, 0, GetHashKey("s_m_m_gentransport"), -1, true, false)
+		while not DoesEntityExist(ped) do Wait(0) end
+		--print("Created ped " .. ped .. " for " .. vehicle, "Route " .. routeId, "BusNum "..busNum) 
 	end
-	while not DoesEntityExist(ped) do Wait(0) end
-	SetEntityAsNoLongerNeeded(ped)
-	SetEntityAsMissionEntity(ped, false, false)
-	SetEntityAsNoLongerNeeded(vehicle)
-	SetEntityAsMissionEntity(vehicle, false, false)
+	-- SetEntityAsNoLongerNeeded(ped)
+	-- SetEntityAsMissionEntity(ped, false, false)
+	-- SetEntityAsNoLongerNeeded(vehicle)
+	-- SetEntityAsMissionEntity(vehicle, false, false)
 	local pedNetId = PedToNet(ped)
 	DoRequestNetControl(pedNetId)
 	DoRequestNetControl(vehicleNetId)

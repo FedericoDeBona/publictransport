@@ -49,7 +49,7 @@ function ServerManageRoute(data, bakedRoutePart)
 
 	-- Delete the ped and bus
 	local vehicle = NetToEnt(data.vehicleNetId)
-	local ped = GetPedInVehicleSeat(vehicle, -1)
+	local ped = GetPedInVehicleSeat(vehicle, -1, false)
 	while DoesEntityExist(ped) do
 		DeleteEntity(ped)
 		Wait(0)
@@ -142,7 +142,7 @@ function CleanUp()
 	for routeId, buses in ipairs(routes) do
 		for busNum, data in ipairs(buses) do
 			local vehicle = NetToEnt(data.vehicleNetId)
-			local ped = GetPedInVehicleSeat(vehicle, -1)
+			local ped = GetPedInVehicleSeat(vehicle, -1, false)
 			while DoesEntityExist(ped) do
 				DeleteEntity(ped)
 				Wait(0)
@@ -179,13 +179,13 @@ AddEventHandler("publictransport:playerNearVehicle", function(routeId, busNum, p
 	local data = routes[routeId][busNum]
 	local vehicle = NetToEnt(data.vehicleNetId)
 	-- If vehicle already exist or someone is already changing the owner, do nothing
-	if (DoesEntityExist(vehicle) and DoesEntityExist(GetPedInVehicleSeat(vehicle, -1))) or data.changingOwner then
+	if DoesEntityExist(vehicle) or data.changingOwner then
 		return
 	end
 	data.changingOwner = true
 	local hash = Config.Routes[routeId].info.hash
 	
-	local ped = GetPedInVehicleSeat(vehicle, -1)
+	local ped = GetPedInVehicleSeat(vehicle, -1, false)
 	while DoesEntityExist(ped) do
 		DeleteEntity(ped)
 		Wait(0)
@@ -236,9 +236,4 @@ AddEventHandler("onResourceStop", function(resName)
 	if GetCurrentResourceName() == resName then
 		CleanUp()
 	end
-end)
-
-RegisterCommand("getcoords", function(source)
-	local s = source
-	print(GetEntityCoords(GetPlayerPed(s)))
 end)
