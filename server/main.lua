@@ -86,10 +86,22 @@ function ManageOwnerChanged(data, position)
 	local owner = NetworkGetEntityOwner(NetToEnt(data.vehicleNetId))
 	data.position = position
 	
-	if owner <= 0 then
+	if owner < 0 then
 		data.owner = "server"
+
+		local vehicle = NetToEnt(data.vehicleNetId)
+		local ped = GetPedInVehicleSeat(vehicle, -1)
+		while DoesEntityExist(ped) do
+			DeleteEntity(ped)
+			Wait(0)
+		end
+		while DoesEntityExist(vehicle) do
+			DeleteEntity(vehicle)
+			Wait(0)
+		end
+
 		ServerManageRoute(data, DecrementIndex(data.nextStop, #Config.Routes[data.routeId].busStops))
-	else
+	elseif owner > 0 then
 		data.owner = owner
 		TriggerClientEvent("publictransport:restoreRoute", data.owner, data.routeId, data.busNum, data.vehicleNetId, data.nextStop, data.position)
 	end
@@ -185,14 +197,23 @@ AddEventHandler("publictransport:playerNearVehicle", function(routeId, busNum, p
 	data.changingOwner = true
 	local hash = Config.Routes[routeId].info.hash
 	
-	local ped = GetPedInVehicleSeat(vehicle, -1, false)
-	while DoesEntityExist(ped) do
-		DeleteEntity(ped)
+	vehicle = CreateVehicle(GetHashKey(hash), position, heading, true, false)
+	while not DoesEntityExist(vehicle) do Wait(0) end
+
+	local ped = CreatePed(0, GetHashKey("s_m_m_gentransport"), GetEntityCoords(vehicle) + vector3(0.0, 0.0, 2.0), 0.0, true, false)
+	while not DoesEntityExist(ped) do 
 		Wait(0)
 	end
-	vehicle = CreateVehicle(GetHashKey(hash), position, heading, true, false)
-	
-	while not DoesEntityExist(vehicle) do Wait(0) end
+	-- Doing this i'm sure that when health is not 0 then ped is actaully created
+	while GetEntityHealth(ped) == 0 do
+		Wait(0)
+	end
+	ClearPedTasksImmediately(ped)
+	ClearPedSecondaryTask(ped)
+	while GetPedInVehicleSeat(vehicle, -1) ~= ped do
+		TaskWarpPedIntoVehicle(ped, vehicle, -1)
+		Wait(100)
+	end
 	
 	local vehicleNetId = NetworkGetNetworkIdFromEntity(vehicle)
 	local owner = NetworkGetEntityOwner(vehicle)
